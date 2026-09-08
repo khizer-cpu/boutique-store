@@ -2,10 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { NextRequest } from "next/server";
 
-// Fallback prevents runtime crashes if process.env.JWT_SECRET isn't set in .env
 const SECRET_KEY = process.env.JWT_SECRET || "fallback_super_secret_key_123456789";
 const JWT_SECRET = new TextEncoder().encode(SECRET_KEY);
-const COOKIE_NAME = "boutique_token";
+
+export const AUTH_COOKIE_NAME = "boutique_token";
 
 export type JwtPayload = {
   userId: string;
@@ -38,11 +38,8 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-// Reads and verifies the JWT from the request cookie.
 export async function getUserFromRequest(req: NextRequest): Promise<JwtPayload | null> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
   return await verifyToken(token);
-}
-
-export const AUTH_COOKIE_NAME = COOKIE_NAME;
+} 
