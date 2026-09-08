@@ -1,44 +1,57 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { prisma } from "@/lib/prisma";
-import { getUserFromRequest } from "@/lib/auth";
+import { PrismaClient } from "@prisma/client";
 
-// GET /api/products?category=outerwear — public, supports optional category filter
-export async function GET(req: NextRequest) {
-  const category = req.nextUrl.searchParams.get("category");
+const prisma = new PrismaClient();
 
-  const products = await prisma.product.findMany({
-    where: category ? { category: { slug: category } } : undefined,
-    include: { category: true },
-    orderBy: { createdAt: "desc" }
+async function main() {
+  // Replace these categoryId strings with actual Category IDs from your DB
+  const categoryIds = {
+    coats: "CATEGORY_ID_COATS",
+    tailoring: "CATEGORY_ID_TAILORING",
+    accessories: "CATEGORY_ID_ACCESSORIES",
+  };
+
+  const newProducts = [
+    {
+      name: "Cashmere Crewneck Sweater",
+      slug: "cashmere-crewneck-sweater",
+      description: "Ultra-soft 100% cashmere crewneck crafted for effortless layering.",
+      price: 280.00,
+      imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27",
+      stock: 15,
+      categoryId: categoryIds.tailoring,
+    },
+    {
+      name: "Minimalist Leather Loafers",
+      slug: "minimalist-leather-loafers",
+      description: "Handcrafted supple leather loafers with a cushioned footbed.",
+      price: 240.00,
+      imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2",
+      stock: 20,
+      categoryId: categoryIds.accessories,
+    },
+    {
+      name: "Tailored Linen Trousers",
+      slug: "tailored-linen-trousers",
+      description: "Breathable high-waisted linen trousers with wide-leg silhouette.",
+      price: 195.00,
+      imageUrl: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1",
+      stock: 12,
+      categoryId: categoryIds.tailoring,
+    },
+  ];
+
+  for (const product of newProducts) {
+    await prisma.product.create({ data: product });
+  }
+
+  console.log("Products added successfully!");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });
-
-  return NextResponse.json({ products });
-}
-
-const productSchema = z.object({
-  name: z.string().min(2),
-  slug: z.string().min(2),
-  description: z.string().min(1),
-  price: z.number().positive(),
-  imageUrl: z.string().url(),
-  stock: z.number().int().nonnegative(),
-  categoryId: z.string()
-});
-
-// POST /api/products — admin only
-export async function POST(req: NextRequest) {
-  const user = getUserFromRequest(req);
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const body = await req.json();
-  const parsed = productSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const product = await prisma.product.create({ data: parsed.data });
-  return NextResponse.json({ product }, { status: 201 });
-}
